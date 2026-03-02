@@ -144,7 +144,9 @@ export default function EventDetailPage() {
 
 {!isCancelled && (() => {
   const userId = token ? JSON.parse(atob(token.split('.')[1])).sub : null;
-  const isOrganizer = userId && parseInt(userId) === event.organizer_id;
+  const role = localStorage.getItem("role");
+  const isOrganizer = role === "admin" ||
+    (role === "organizer" && userId && parseInt(userId) === event.organizer_id);
 
   return isOrganizer ? (
     <div className="flex gap-3">

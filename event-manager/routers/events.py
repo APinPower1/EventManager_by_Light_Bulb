@@ -4,10 +4,10 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 from database import get_db
-from models import Event, User
+from models import Event, User, Registration
 from .auth import SECRET_KEY, ALGORITHM
 from jose import jwt, JWTError
-from models import Event, User, Registration
+
 router = APIRouter(prefix="/events", tags=["Events"])
 
 # --- Auth helper ---
@@ -67,6 +67,8 @@ def create_event(
     db: Session = Depends(get_db)
 ):
     user = get_current_user(token, db)
+    if user.role not in ("admin", "organizer"):
+        raise HTTPException(status_code=403, detail="Only admins and organizers can create events")
     event = Event(
         **data.model_dump(),
         seats_remaining=data.total_seats,
@@ -88,26 +90,26 @@ def update_event(
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    if event.organizer_id != user.id:
-        raise HTTPException(status_code=403, detail="Not your event")
 
-    # Calculate how many people are already registered
+    # Admin can edit any event, organizer only their own
+    if user.role == "admin":
+        pass
+    elif user.role == "organizer" and event.organizer_id == user.id:
+        pass
+    else:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this event")
+
     registered_count = db.query(Registration).filter(Registration.event_id == event_id).count()
-
-    # Don't allow reducing seats below current registrations
     if data.total_seats < registered_count:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot reduce seats below current registration count ({registered_count})"
         )
 
-    # Update all fields
     for key, value in data.model_dump().items():
         setattr(event, key, value)
 
-    # Recalculate seats remaining based on new total
     event.seats_remaining = data.total_seats - registered_count
-
     db.commit()
     db.refresh(event)
     return event
@@ -122,8 +124,15 @@ def cancel_event(
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    if event.organizer_id != user.id:
-        raise HTTPException(status_code=403, detail="Not your event")
+
+    # Admin can cancel any event, organizer only their own
+    if user.role == "admin":
+        pass
+    elif user.role == "organizer" and event.organizer_id == user.id:
+        pass
+    else:
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this event")
+
     event.status = "cancelled"
     db.commit()
     return {"message": "Event cancelled"}

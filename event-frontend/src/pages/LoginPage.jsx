@@ -15,6 +15,7 @@ export default function LoginPage() {
     try {
       const res = await api.post("/auth/login", form);
       localStorage.setItem("token", res.data.access_token);
+      localStorage.setItem("role", res.data.role);
       navigate("/events");
     } catch (err) {
       setError(err.response?.data?.detail || "Login failed");

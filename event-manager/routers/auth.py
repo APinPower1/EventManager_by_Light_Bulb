@@ -2,16 +2,27 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
-from jose import jwt
+from jose import jwt, JWTError
 import os
 from database import get_db
 from models import User
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.getenv("JWT_SECRET", "fallbacksecret")
 ALGORITHM = "HS256"
+def get_current_user(token: str, db: Session):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user = db.query(User).filter(User.id == int(payload["sub"])).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 # --- Schemas ---
 class SignupRequest(BaseModel):
@@ -49,5 +60,29 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     if not user or not pwd_context.verify(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
-    token = jwt.encode({"sub": str(user.id), "email": user.email}, SECRET_KEY, algorithm=ALGORITHM)
-    return {"access_token": token, "token_type": "bearer"}
+    token = jwt.encode({"sub": str(user.id), "email": user.email, "role": user.role}, SECRET_KEY, algorithm=ALGORITHM)
+    return {"access_token": token, "token_type": "bearer", "role": user.role}
+
+
+class AssignRoleRequest(BaseModel):
+    email: str
+    role: str  # "user", "organizer", "admin"
+
+@router.put("/assign-role")
+def assign_role(data: AssignRoleRequest, token: str = Query(...), db: Session = Depends(get_db)):
+    requesting_user = get_current_user(token, db)
+    if requesting_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can assign roles")
+    target = db.query(User).filter(User.email == data.email).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if data.role not in ("user", "organizer", "admin"):
+        raise HTTPException(status_code=400, detail="Invalid role")
+    target.role = data.role
+    db.commit()
+    return {"message": f"{target.name} is now a {data.role}"}
+
+@router.get("/me")
+def get_me(token: str = Query(...), db: Session = Depends(get_db)):
+    user = get_current_user(token, db)
+    return {"id": user.id, "name": user.name, "email": user.email, "role": user.role}

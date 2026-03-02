@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import api from "../api";
 import axios from "axios";
 
+const CATEGORIES = ["Tech", "Music", "Sports", "Art", "Food", "Business", "Other"];
+
 export default function CreateEventPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -66,7 +68,6 @@ export default function CreateEventPage() {
 
     setLoading(true);
     try {
-      // Upload image first if selected
       let poster_url = form.poster_url;
       if (imageFile) {
         const uploadedUrl = await uploadImage();
@@ -108,7 +109,6 @@ export default function CreateEventPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
 
-        {/* Title */}
         <Field label="Title *">
           <input
             required
@@ -118,7 +118,6 @@ export default function CreateEventPage() {
           />
         </Field>
 
-        {/* Description */}
         <Field label="Description">
           <textarea
             rows={3}
@@ -128,7 +127,6 @@ export default function CreateEventPage() {
           />
         </Field>
 
-        {/* Date + Time */}
         <div className="grid grid-cols-2 gap-4">
           <Field label="Date *">
             <input
@@ -150,7 +148,6 @@ export default function CreateEventPage() {
           </Field>
         </div>
 
-        {/* Location + Maps */}
         <Field label="Location *">
           <div className="flex gap-2">
             <input
@@ -169,18 +166,8 @@ export default function CreateEventPage() {
               🗺️
             </button>
           </div>
-          {form.location && (
-            <button
-              type="button"
-              onClick={openMapsSearch}
-              className="text-xs text-amber-400 hover:underline mt-1"
-            >
-              View "{form.location}" on Google Maps →
-            </button>
-          )}
         </Field>
 
-        {/* Seats + Cost */}
         <div className="grid grid-cols-2 gap-4">
           <Field label="Total Seats *">
             <input
@@ -203,15 +190,19 @@ export default function CreateEventPage() {
           </Field>
         </div>
 
-        {/* Category + Contact */}
         <div className="grid grid-cols-2 gap-4">
+          {/* Category dropdown */}
           <Field label="Category">
-            <input
+            <select
               value={form.category}
               onChange={(e) => set("category", e.target.value)}
-              placeholder="e.g. Tech, Music"
               className={inputClass}
-            />
+            >
+              <option value="">Select a category</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           </Field>
           <Field label="Contact Number">
             <input
@@ -222,7 +213,6 @@ export default function CreateEventPage() {
           </Field>
         </div>
 
-        {/* Poster Upload */}
         <Field label="Event Poster">
           <div className="space-y-2">
             <label className="flex items-center justify-center w-full border-2 border-dashed border-zinc-700 rounded-lg p-4 cursor-pointer hover:border-amber-400 transition-colors">
@@ -256,7 +246,6 @@ export default function CreateEventPage() {
           </div>
         </Field>
 
-        {/* Buttons */}
         <div className="flex gap-3 pt-2">
           <button
             type="submit"

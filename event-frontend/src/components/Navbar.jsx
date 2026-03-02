@@ -21,9 +21,15 @@ export default function Navbar() {
           </Link>
           {token ? (
             <>
-              <Link to="/create" className="text-zinc-400 hover:text-zinc-100 transition-colors">
+              {["admin", "organizer"].includes(localStorage.getItem("role")) && (<Link to="/create" className="text-zinc-400 hover:text-zinc-100 transition-colors">
                 Create Event
               </Link>
+
+              )}
+              {localStorage.getItem("role") === "admin" && (<Link to="/admin" className="text-zinc-400 hover:text-zinc-100 transition-colors">  
+              Admin 
+              </Link>
+              )}
               <button
                 onClick={logout}
                 className="text-zinc-400 hover:text-red-400 transition-colors"
