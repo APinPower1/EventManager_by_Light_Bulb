@@ -46,7 +46,7 @@ export default function EditEventPage() {
     setSaving(true);
     setError(null);
     try {
-      const datetime = new Date(`${form.date}T${form.time}`).toISOString();
+      const datetime = `${form.date}T${form.time}:00`;
       await api.put(`/events/${id}?token=${token}`, {
         title: form.title,
         description: form.description,

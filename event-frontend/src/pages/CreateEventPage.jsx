@@ -132,7 +132,7 @@ export default function CreateEventPage() {
       const payload = {
         title: form.title,
         description: fullDescription,
-        date: new Date(`${form.date}T${form.time}`).toISOString(),
+        date: `${form.date}T${form.time}:00`,
         location: form.location,
         total_seats: parseInt(form.total_seats),
         cost: parseInt(form.cost) || 0,

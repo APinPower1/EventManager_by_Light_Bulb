@@ -177,30 +177,70 @@ export default function EventDetailPage() {
 
       <div className="flex items-start justify-between gap-4 mb-4">
         <h1 className="text-2xl font-bold">{event.title}</h1>
-        <span className={`text-xs px-2 py-1 rounded shrink-0 ${
-          isCancelled ? "bg-zinc-800 text-zinc-400"
-          : isFull ? "bg-red-900/50 text-red-400"
-          : "bg-green-900/50 text-green-400"
-        }`}>
+        <span className={`text-xs px-2 py-1 rounded shrink-0 ${isCancelled ? "bg-zinc-800 text-zinc-400"
+            : isFull ? "bg-red-900/50 text-red-400"
+              : "bg-green-900/50 text-green-400"
+          }`}>
           {isCancelled ? "Cancelled" : isFull ? "Sold Out" : "Open"}
         </span>
       </div>
 
       {event.description && (
-        <p className="text-zinc-400 mb-6">{event.description}</p>
+        <div className="text-zinc-400 mb-6 space-y-3">
+          {event.description.split('\n').map((line, i) => {
+            const imageMatch = line.match(/^!\[(.+?)\]\((.+?)\)$/);
+            const linkMatch = line.match(/^\[(.+?)\]\((.+?)\)$/);
+
+            if (imageMatch) {
+              return (
+                <div key={i}>
+                  {imageMatch[1] && (
+                    <p className="text-zinc-500 text-xs mb-1">{imageMatch[1]}</p>
+                  )}
+                  <img
+                    src={imageMatch[2]}
+                    alt={imageMatch[1]}
+                    className="w-full rounded-lg object-cover max-h-64"
+                  />
+                </div>
+              );
+            }
+
+            if (linkMatch) {
+              return (
+                <div key={i}>
+                  {linkMatch[1] && (
+                    <p className="text-zinc-500 text-xs mb-1">{linkMatch[1]}</p>
+                  )}
+                  <img
+                    src={linkMatch[2]}
+                    alt={linkMatch[1]}
+                    className="w-full rounded-lg object-cover max-h-64"
+                  />
+                </div>
+              );
+            }
+
+            if (line.startsWith('**') && line.endsWith('**')) {
+              return <p key={i} className="text-zinc-200 font-semibold mt-2">{line.replace(/\*\*/g, '')}</p>;
+            }
+
+            return line ? <p key={i}>{line}</p> : null;
+          })}
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-3 mb-6 text-sm">
         <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
           <div className="text-zinc-500 text-xs mb-1">Date</div>
-          <div>{new Date(event.date).toLocaleString()}</div>
+          <div>{event.date.replace('T', ' ').slice(0, 16)}</div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded p-3">
           <div className="text-zinc-500 text-xs mb-1">Location</div>
           <div>{event.location}</div>
-          
-            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+
+          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 mt-2 transition-colors"
@@ -243,11 +283,10 @@ export default function EventDetailPage() {
       </div>
 
       {message && (
-        <div className={`text-sm px-3 py-2 rounded mb-4 ${
-          message.type === "success"
+        <div className={`text-sm px-3 py-2 rounded mb-4 ${message.type === "success"
             ? "bg-green-900/30 border border-green-800 text-green-400"
             : "bg-red-900/30 border border-red-800 text-red-400"
-        }`}>
+          }`}>
           {message.text}
         </div>
       )}
@@ -308,16 +347,15 @@ export default function EventDetailPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                              r.payment_status === "confirmed"
+                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${r.payment_status === "confirmed"
                                 ? "bg-green-900/40 text-green-400"
                                 : r.payment_status === "pending_payment"
-                                ? "bg-amber-900/40 text-amber-400"
-                                : "bg-red-900/40 text-red-400"
-                            }`}>
+                                  ? "bg-amber-900/40 text-amber-400"
+                                  : "bg-red-900/40 text-red-400"
+                              }`}>
                               {r.payment_status === "confirmed" ? "Paid"
                                 : r.payment_status === "pending_payment" ? "Pending"
-                                : "Rejected"}
+                                  : "Rejected"}
                             </span>
                             <span className="text-amber-400 font-mono text-xs">#{r.booking_id}</span>
                           </div>
@@ -351,15 +389,14 @@ export default function EventDetailPage() {
               <button
                 onClick={waitlist.on_waitlist ? handleLeaveWaitlist : handleJoinWaitlist}
                 disabled={waitlistLoading}
-                className={`font-semibold px-6 py-2 rounded transition-colors disabled:opacity-40 ${
-                  waitlist.on_waitlist
+                className={`font-semibold px-6 py-2 rounded transition-colors disabled:opacity-40 ${waitlist.on_waitlist
                     ? "border border-red-700 text-red-400 hover:bg-red-900/30"
                     : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
-                }`}
+                  }`}
               >
                 {waitlistLoading ? "Processing..."
                   : waitlist.on_waitlist ? `Leave Waitlist (Position #${waitlist.position})`
-                  : "Join Waitlist"}
+                    : "Join Waitlist"}
               </button>
             ) : (
               <button

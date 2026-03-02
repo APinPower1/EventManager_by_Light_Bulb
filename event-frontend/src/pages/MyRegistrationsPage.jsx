@@ -39,10 +39,8 @@ export default function MyRegistrationsPage() {
                                     <h2 className="font-semibold text-zinc-100">{r.event_title}</h2>
                                     <p className="text-zinc-500 text-sm mt-1">{r.event_location}</p>
                                     <p className="text-zinc-500 text-sm">
-                                        {new Date(r.event_date).toLocaleDateString("en-GB", {
-                                            day: "numeric", month: "short", year: "numeric",
-                                            hour: "2-digit", minute: "2-digit"
-                                        })}
+                                        {r.event_date.replace('T', ' ').slice(0, 16)}
+
                                     </p>
                                 </div>
                                 <div className="text-right shrink-0">
