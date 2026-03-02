@@ -1,36 +1,6 @@
 # Event Registration & Capacity Manager
 
-A full-stack web application for creating and managing events with real-time seat tracking, registration enforcement, and JWT-based authentication.
-
-Built for Magic Hackathon using FastAPI, SQLAlchemy, SQLite, React, and Tailwind CSS.
-
----
-
-## Table of Contents
-
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Backend Setup](#backend-setup)
-  - [Frontend Setup](#frontend-setup)
-- [API Reference](#api-reference)
-- [Business Logic](#business-logic)
-- [Environment Variables](#environment-variables)
-- [Team](#team)
-
----
-
-## Features
-
-- **Authentication** — Signup and login with JWT tokens. All protected routes require a valid token.
-- **Event Management** — Create, view, edit, and cancel events. Only the organizer can edit or cancel their own events.
-- **Registration System** — Register for events with real-time seat tracking. Prevents overbooking and duplicate registrations. Cancellations restore seat count automatically.
-- **Capacity Enforcement** — Events automatically move to "Sold Out" status when full, and back to "Active" when a registration is cancelled.
-- **Filtering & Search** — Filter events by category, availability, and date. Search by event name.
-- **Poster Upload** — Upload event posters directly from the create/edit form. Images are stored on the backend and served as URLs.
-- **Organizer Dashboard** — Organizers see Edit/Cancel buttons on their own events instead of Register.
+A full-stack event management platform with role-based access control, seat capacity enforcement, and a clean React frontend.
 
 ---
 
@@ -39,13 +9,56 @@ Built for Magic Hackathon using FastAPI, SQLAlchemy, SQLite, React, and Tailwind
 | Layer | Technology |
 |---|---|
 | Backend | FastAPI (Python) |
-| ORM | SQLAlchemy |
-| Database | SQLite |
-| Auth | JWT via python-jose + passlib/bcrypt |
-| Frontend | React + Vite |
-| Styling | Tailwind CSS v4 |
-| HTTP Client | Axios |
-| Routing | React Router v6 |
+| Database | SQLite via SQLAlchemy |
+| Auth | JWT (python-jose + passlib/bcrypt) |
+| Frontend | React + Vite + Tailwind CSS v4 |
+| File Uploads | FastAPI static file serving |
+
+---
+
+## Features
+
+### Authentication
+- Signup and login with JWT tokens
+- Roles: **admin**, **organizer**, **user**
+- Role stored in JWT payload and localStorage
+
+### Role-Based Access Control
+| Action | Admin | Organizer | User |
+|---|---|---|---|
+| Create events | ✅ | ✅ | ❌ |
+| Edit own events | ✅ | ✅ | ❌ |
+| Delete any event | ✅ | ❌ | ❌ |
+| Delete own events | ✅ | ✅ | ❌ |
+| Register for events | ✅ | ✅ | ✅ |
+| Assign roles | ✅ | ❌ | ❌ |
+
+### Event Management
+- Create events with title, description, date, time, location, seats, cost, category, contact number, and poster image
+- Edit and cancel events
+- Category dropdown (Tech, Music, Sports, Arts, Business, Food, Health, Education, Other)
+- Poster image upload with preview
+- Google Maps link on event detail page
+
+### Capacity Enforcement
+- No overbooking — returns `409 Conflict` when full
+- Duplicate registration prevention — returns `409 Conflict`
+- Cancellation restores seat count
+- Event status auto-updates to `sold_out` when full, back to `active` on cancellation
+
+### Registration
+- Register and cancel for events
+- View all your registered events with booking IDs in "My Events"
+
+### Filtering & Sorting
+- Search by event title
+- Filter by category
+- Filter by availability (available seats only)
+- Sort by date (nearest first / furthest first)
+
+### Admin Panel
+- Assign or change user roles by email
+- Accessible only to admins via `/admin`
 
 ---
 
@@ -55,225 +68,135 @@ Built for Magic Hackathon using FastAPI, SQLAlchemy, SQLite, React, and Tailwind
 Magic_Hackathon-/
 ├── event-manager/          # Backend
 │   ├── routers/
-│   │   ├── auth.py         # Signup, login
-│   │   ├── events.py       # Event CRUD + filtering
-│   │   └── registrations.py# Register, cancel, view registrants
-│   ├── models.py           # SQLAlchemy models (User, Event, Registration)
-│   ├── database.py         # DB connection and session
-│   ├── main.py             # App entry point, CORS, file upload
-│   ├── .env                # Environment variables (not committed)
-│   └── pyproject.toml      # Dependencies
+│   │   ├── auth.py         # Signup, login, role assignment
+│   │   ├── events.py       # Event CRUD with role checks
+│   │   └── registrations.py # Register, cancel, view registrants
+│   ├── models.py           # SQLAlchemy models
+│   ├── database.py         # DB session and engine
+│   ├── main.py             # App entry point, CORS, file uploads
+│   └── .env                # Secrets (not committed)
 │
 └── event-frontend/         # Frontend
     └── src/
-        ├── components/
-        │   ├── Navbar.jsx
-        │   └── EventCard.jsx
         ├── pages/
-        │   ├── LoginPage.jsx
-        │   ├── SignupPage.jsx
         │   ├── EventsPage.jsx
         │   ├── EventDetailPage.jsx
         │   ├── CreateEventPage.jsx
-        │   └── EditEventPage.jsx
-        ├── api.js           # Axios instance
-        └── App.jsx          # Routes
+        │   ├── EditEventPage.jsx
+        │   ├── MyRegistrationsPage.jsx
+        │   ├── AdminPage.jsx
+        │   ├── LoginPage.jsx
+        │   └── SignupPage.jsx
+        ├── components/
+        │   ├── Navbar.jsx
+        │   └── EventCard.jsx
+        └── api.js
 ```
 
 ---
 
-## Getting Started
+## Setup Instructions
 
 ### Prerequisites
-
 - Python 3.10+
 - Node.js 18+
-- uv (Python package manager) — install with `pip install uv`
+- uv (Python package manager)
 
----
+### Backend
 
-### Backend Setup
-
-**1. Navigate to the backend folder:**
 ```bash
 cd event-manager
-```
 
-**2. Create and activate a virtual environment:**
-```bash
+# Create and activate virtual environment
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 source .venv/bin/activate     # Mac/Linux
-```
 
-**3. Install dependencies:**
-```bash
-uv add fastapi uvicorn sqlalchemy python-jose passlib "bcrypt==4.0.1" python-dotenv "pydantic[email]" python-multipart
-```
+# Install dependencies
+uv add fastapi uvicorn sqlalchemy python-dotenv "pydantic[email]" "python-jose[cryptography]" "passlib[bcrypt]" "bcrypt==4.0.1" python-multipart
 
-**4. Create a `.env` file in the `event-manager/` folder:**
-```
-JWT_SECRET=your_long_random_secret_here
-```
+# Create .env file
+echo SUPABASE_URL=not_used > .env
+echo JWT_SECRET=your_secret_here >> .env
 
-Generate a secure secret with:
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-**5. Run the server:**
-```bash
+# Run the server
 uvicorn main:app --reload
 ```
 
-The API will be live at `http://127.0.0.1:8000`
-Interactive docs available at `http://127.0.0.1:8000/docs`
+Backend runs at `http://localhost:8000`  
+Swagger docs at `http://localhost:8000/docs`
 
----
+### Frontend
 
-### Frontend Setup
-
-**1. Navigate to the frontend folder:**
 ```bash
 cd event-frontend
-```
 
-**2. Install dependencies:**
-```bash
 npm install
-```
-
-**3. Run the development server:**
-```bash
 npm run dev
 ```
 
-The app will be live at `http://localhost:5173`
-
-> Both servers must be running at the same time for the app to work.
+Frontend runs at `http://localhost:5173`
 
 ---
 
-## API Reference
+## API Endpoints
 
 ### Auth
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/signup` | Create a new account |
-| POST | `/auth/login` | Login and receive a JWT token |
-
-**Signup request body:**
-```json
-{
-  "name": "Jane Doe",
-  "email": "jane@example.com",
-  "password": "securepassword",
-  "phone": "9876543210"
-}
-```
-
-**Login response:**
-```json
-{
-  "access_token": "<jwt_token>",
-  "token_type": "bearer"
-}
-```
-
----
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/auth/signup` | Public | Create account |
+| POST | `/auth/login` | Public | Login, returns JWT |
+| GET | `/auth/me` | Authenticated | Get current user |
+| PUT | `/auth/assign-role` | Admin only | Assign role by email |
 
 ### Events
-
-| Method | Endpoint | Auth | Description |
+| Method | Endpoint | Access | Description |
 |---|---|---|---|
-| GET | `/events/` | No | List all events |
-| GET | `/events/{id}` | No | Get a single event |
-| POST | `/events/` | Yes | Create an event |
-| PUT | `/events/{id}` | Yes | Edit an event (organizer only) |
-| DELETE | `/events/{id}` | Yes | Cancel an event (organizer only) |
-
-**Query parameters for `GET /events/`:**
-
-| Param | Type | Description |
-|---|---|---|
-| `search` | string | Search by event title |
-| `category` | string | Filter by category |
-| `available` | boolean | Show only events with seats remaining |
-| `date` | datetime | Show events from this date onwards |
-
----
+| GET | `/events/` | Public | List all events (supports `?search=`, `?category=`, `?available=true`, `?date=`) |
+| GET | `/events/{id}` | Public | Get single event |
+| POST | `/events/` | Admin / Organizer | Create event |
+| PUT | `/events/{id}` | Admin / Own organizer | Edit event |
+| DELETE | `/events/{id}` | Admin / Own organizer | Cancel event |
 
 ### Registrations
-
-| Method | Endpoint | Auth | Description |
+| Method | Endpoint | Access | Description |
 |---|---|---|---|
-| POST | `/registrations/{event_id}` | Yes | Register for an event |
-| DELETE | `/registrations/{event_id}` | Yes | Cancel your registration |
-| GET | `/registrations/{event_id}` | Yes | View registrants (organizer only) |
+| GET | `/registrations/my` | Authenticated | Get your registrations |
+| POST | `/registrations/{event_id}` | Authenticated | Register for event |
+| DELETE | `/registrations/{event_id}` | Authenticated | Cancel registration |
+| GET | `/registrations/{event_id}` | Organizer / Admin | View registrants |
 
-**Registration response:**
-```json
-{
-  "message": "Successfully registered",
-  "booking_id": "A1B2C3D4",
-  "event": "Magic 5.0",
-  "seats_remaining": 9
-}
-```
-
----
-
-### File Upload
-
+### Uploads
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/upload` | Upload an event poster image |
-
-Returns a URL that can be stored as `poster_url` on an event.
+| POST | `/upload` | Upload event poster image |
 
 ---
 
-## Business Logic
+## First-Time Admin Setup
 
-The registration system enforces the following rules:
+After running the backend and signing up, set your account as admin:
 
-- **No overbooking** — If `seats_remaining == 0`, registration returns `409 Conflict` with the message "Event is fully booked"
-- **No duplicates** — A user cannot register for the same event twice. Returns `409 Conflict` with "You are already registered for this event"
-- **Seat restoration** — Cancelling a registration increments `seats_remaining` by 1 automatically
-- **Auto status updates** — When the last seat is taken, event status changes to `sold_out`. When a cancellation reopens a seat, status reverts to `active`
-- **Organizer protection** — Only the user who created an event can edit or cancel it. Others receive `403 Forbidden`
-- **Inactive event guard** — Registering for a cancelled event returns `400 Bad Request`
-
----
-
-## Error Responses
-
-All errors return structured JSON:
-
-```json
-{ "detail": "Human-readable error message" }
+```bash
+# In the event-manager folder with venv active
+python
 ```
 
-| Status Code | Meaning |
-|---|---|
-| 400 | Bad request or invalid input |
-| 401 | Not authenticated |
-| 403 | Not authorized (e.g. not the organizer) |
-| 404 | Resource not found |
-| 409 | Conflict (full event, duplicate registration) |
-| 422 | Validation error (missing or wrong-type fields) |
+```python
+from database import SessionLocal
+from models import User
+db = SessionLocal()
+user = db.query(User).filter(User.email == "your@email.com").first()
+user.role = "admin"
+db.commit()
+print(user.name, user.role)
+exit()
+```
 
 ---
 
-## Environment Variables
-
-| Variable | Description |
-|---|---|
-| `JWT_SECRET` | Secret key used to sign JWT tokens. Keep this private and never commit it. |
-
----
-
-## Team
-
-Built at Magic Hackathon by Team Light_Bulb.
+Team Light_Bulb
+APinPower1
+Darkhor4804G
+garryvino
+jacobsthomas171-cmd
