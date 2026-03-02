@@ -164,11 +164,36 @@ def cancel_registration(event_id: int, token: str = Query(...), db: Session = De
     ).first()
     if not registration:
         raise HTTPException(status_code=404, detail="Registration not found")
+    
     event = db.query(Event).filter(Event.id == event_id).first()
-    event.seats_remaining += 1
-    if event.status == "sold_out":
-        event.status = "active"
     db.delete(registration)
+
+    # Check waitlist before restoring seat
+    next_in_line = db.query(Waitlist).filter(
+        Waitlist.event_id == event_id
+    ).order_by(Waitlist.joined_at).first()
+
+    if next_in_line:
+        # Auto-register the first person on the waitlist
+        booking_id = str(uuid.uuid4())[:8].upper()
+        payment_status = "pending_payment" if event.cost > 0 else "confirmed"
+        new_registration = Registration(
+            user_id=next_in_line.user_id,
+            event_id=event_id,
+            booking_id=booking_id,
+            payment_status=payment_status
+        )
+        db.add(new_registration)
+        db.delete(next_in_line)
+        # Seat stays at 0 — given directly to waitlist person
+        if event.status == "sold_out":
+            event.status = "active" if event.seats_remaining > 0 else "sold_out"
+    else:
+        # No waitlist — just restore the seat normally
+        event.seats_remaining += 1
+        if event.status == "sold_out":
+            event.status = "active"
+
     db.commit()
     return {"message": "Registration cancelled", "seats_remaining": event.seats_remaining}
 

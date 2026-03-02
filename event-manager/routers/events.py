@@ -42,7 +42,7 @@ def list_events(
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None)
 ):
-    query = db.query(Event).filter(Event.status == "active")
+    query = db.query(Event).filter(Event.status != "cancelled")
     if date:
         query = query.filter(Event.date >= date)
     if available:

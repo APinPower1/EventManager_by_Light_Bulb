@@ -99,3 +99,10 @@ def make_admin(email: str = Query(...), secret: str = Query(...), db: Session = 
     user.role = "admin"
     db.commit()
     return {"message": f"{user.name} is now an admin"}
+@router.get("/users")
+def get_all_users(token: str = Query(...), db: Session = Depends(get_db)):
+    requesting_user = get_current_user(token, db)
+    if requesting_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admins only")
+    users = db.query(User).all()
+    return [{"id": u.id, "name": u.name, "email": u.email, "role": u.role} for u in users]

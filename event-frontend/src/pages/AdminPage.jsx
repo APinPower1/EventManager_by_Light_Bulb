@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+
+const ROLE_COLORS = {
+  admin: "bg-red-900/40 text-red-400",
+  organizer: "bg-amber-900/40 text-amber-400",
+  user: "bg-zinc-800 text-zinc-400",
+};
 
 export default function AdminPage() {
   const navigate = useNavigate();
@@ -10,9 +16,14 @@ export default function AdminPage() {
   const [email, setEmail] = useState("");
   const [selectedRole, setSelectedRole] = useState("organizer");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null); // { type: "success"|"error", text }
+  const [message, setMessage] = useState(null);
 
-  // Redirect non-admins
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [editingId, setEditingId] = useState(null);
+  const [editingRole, setEditingRole] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+
   if (role !== "admin") {
     return (
       <div className="max-w-sm mx-auto mt-16 text-center">
@@ -29,6 +40,22 @@ export default function AdminPage() {
     );
   }
 
+  async function fetchUsers() {
+    try {
+      const cleanToken = token.replace(/^"|"$/g, "");
+      const res = await api.get(`/auth/users?token=${cleanToken}`);
+      setUsers(res.data);
+    } catch {
+      // silently fail
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   async function handleAssign(e) {
     e.preventDefault();
     setLoading(true);
@@ -41,6 +68,7 @@ export default function AdminPage() {
       });
       setMessage({ type: "success", text: res.data.message });
       setEmail("");
+      fetchUsers();
     } catch (err) {
       setMessage({
         type: "error",
@@ -51,22 +79,38 @@ export default function AdminPage() {
     }
   }
 
+  async function handleRoleUpdate(user) {
+    setEditLoading(true);
+    try {
+      const cleanToken = token.replace(/^"|"$/g, "");
+      await api.put(`/auth/assign-role?token=${cleanToken}`, {
+        email: user.email,
+        role: editingRole,
+      });
+      setEditingId(null);
+      fetchUsers();
+    } catch {
+      // silently fail
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
   return (
-    <div className="max-w-md">
+    <div className="max-w-2xl">
       <h1 className="text-2xl font-bold mb-1">Admin Panel</h1>
       <p className="text-zinc-500 text-sm mb-8">Manage user roles</p>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      {/* Assign Role Form */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-8">
         <h2 className="text-base font-semibold mb-4">Assign Role to User</h2>
 
         {message && (
-          <div
-            className={`text-sm px-3 py-2 rounded mb-4 ${
-              message.type === "success"
-                ? "bg-green-900/30 border border-green-800 text-green-400"
-                : "bg-red-900/30 border border-red-800 text-red-400"
-            }`}
-          >
+          <div className={`text-sm px-3 py-2 rounded mb-4 ${
+            message.type === "success"
+              ? "bg-green-900/30 border border-green-800 text-green-400"
+              : "bg-red-900/30 border border-red-800 text-red-400"
+          }`}>
             {message.text}
           </div>
         )}
@@ -107,8 +151,72 @@ export default function AdminPage() {
         </form>
       </div>
 
-      {/* Role reference */}
-      <div className="mt-6 space-y-2">
+      {/* All Users List */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden mb-8">
+        <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+          <h2 className="text-base font-semibold">All Users</h2>
+          <span className="text-xs text-zinc-500">{users.length} registered</span>
+        </div>
+
+        {usersLoading ? (
+          <div className="px-4 py-6 text-center text-zinc-500 text-sm">Loading users...</div>
+        ) : users.length === 0 ? (
+          <div className="px-4 py-6 text-center text-zinc-500 text-sm">No users found</div>
+        ) : (
+          <div className="divide-y divide-zinc-800">
+            {users.map((u) => (
+              <div key={u.id} className="px-4 py-3 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm text-zinc-100 font-medium truncate">{u.name}</p>
+                  <p className="text-xs text-zinc-500 truncate">{u.email}</p>
+                </div>
+
+                {editingId === u.id ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <select
+                      value={editingRole}
+                      onChange={(e) => setEditingRole(e.target.value)}
+                      className="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="user">user</option>
+                      <option value="organizer">organizer</option>
+                      <option value="admin">admin</option>
+                    </select>
+                    <button
+                      onClick={() => handleRoleUpdate(u)}
+                      disabled={editLoading}
+                      className="text-xs bg-amber-400 text-zinc-950 font-semibold px-3 py-1 rounded hover:bg-amber-300 transition-colors disabled:opacity-50"
+                    >
+                      {editLoading ? "..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${ROLE_COLORS[u.role] || ROLE_COLORS.user}`}>
+                      {u.role}
+                    </span>
+                    <button
+                      onClick={() => { setEditingId(u.id); setEditingRole(u.role); }}
+                      className="text-xs text-zinc-500 hover:text-amber-400 transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Role Reference */}
+      <div className="space-y-2">
         <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Role Reference</p>
         {[
           { role: "admin", color: "text-red-400", desc: "Full access — edit/delete any event, assign roles" },
